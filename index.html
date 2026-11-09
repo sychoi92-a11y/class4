@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>중2 수학 - 도형의 닮음 마스터</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        .bounce-animation {
+            animation: bounce 0.5s infinite alternate;
+        }
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-8px); }
+        }
+        .shake-animation {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 flex flex-col justify-between">
+
+    <!-- Header -->
+    <header class="bg-indigo-600 text-white shadow-lg">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-shapes text-yellow-300 text-2xl"></i>
+                <h1 class="text-xl md:text-2xl font-bold tracking-tight">중2 수학: 도형의 닮음 퀴즈</h1>
+            </div>
+            <div class="bg-indigo-700 px-4 py-1.5 rounded-full text-sm font-semibold flex items-center space-x-2">
+                <span>연속 정답:</span>
+                <span id="score-count" class="text-yellow-300 font-extrabold text-lg">0</span>
+                <span>문제</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-3xl w-full mx-auto p-4 flex-grow flex flex-col justify-center">
+
+        <!-- Question Card -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100 transition-all duration-300">
+            
+            <!-- Category Banner -->
+            <div class="bg-indigo-50 px-6 py-3 border-b border-indigo-100 flex justify-between items-center">
+                <span id="problem-category" class="text-xs md:text-sm font-bold text-indigo-700 bg-indigo-100 px-3 py-1 rounded-full">
+                    카테고리 Loading...
+                </span>
+                <span class="text-xs text-slate-500 font-medium">중학교 2학년 2학기</span>
+            </div>
+
+            <div class="p-6 md:p-8 space-y-6">
+
+                <!-- Problem Description -->
+                <div class="space-y-2">
+                    <h2 id="problem-title" class="text-lg md:text-xl font-bold text-slate-800 leading-snug">
+                        문제를 불러오는 중입니다...
+                    </h2>
+                    <p id="problem-sub" class="text-slate-600 text-sm md:text-base">
+                        그림을 참고하여 미지수 <span class="font-bold text-indigo-600">$x$</span>의 값을 구하세요.
+                    </p>
+                </div>
+
+                <!-- Canvas / Diagram Area -->
+                <div class="w-full bg-slate-900 rounded-xl overflow-hidden shadow-inner flex justify-center items-center p-4 relative min-h-[240px]">
+                    <canvas id="geometry-canvas" width="500" height="260" class="max-w-full h-auto"></canvas>
+                </div>
+
+                <!-- Answer Input Form -->
+                <form id="answer-form" class="space-y-4" onsubmit="event.preventDefault(); checkAnswer();">
+                    <div>
+                        <label for="user-answer" class="block text-sm font-semibold text-slate-700 mb-2">
+                            정답 입력 ($x$의 값):
+                        </label>
+                        <div class="flex gap-3">
+                            <input type="number" step="any" id="user-answer" required autocomplete="off"
+                                class="flex-grow px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none text-lg font-bold text-slate-800 transition"
+                                placeholder="숫자만 입력하세요 (예: 6)">
+                            <button type="submit" id="submit-btn"
+                                class="bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold px-6 py-3 rounded-xl transition duration-200 shadow-md flex items-center justify-center gap-2 min-w-[100px]">
+                                <span>확인</span>
+                                <i class="fa-solid fa-paper-plane text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Feedback Message Container -->
+                <div id="feedback-box" class="hidden rounded-xl p-4 transition-all duration-300">
+                    <div class="flex items-start space-x-3">
+                        <div id="feedback-icon" class="text-2xl mt-0.5"></div>
+                        <div class="flex-grow">
+                            <h3 id="feedback-title" class="font-bold text-base md:text-lg"></h3>
+                            <p id="feedback-desc" class="text-sm mt-1 leading-relaxed"></p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Card Footer Controls -->
+            <div class="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-between items-center">
+                <button onclick="toggleHint()" class="text-slate-500 hover:text-indigo-600 font-semibold text-sm flex items-center gap-1.5 transition">
+                    <i class="fa-regular fa-lightbulb text-yellow-500"></i>
+                    <span>힌트 보기</span>
+                </button>
+                <button onclick="nextProblem()" id="next-btn" class="bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold px-5 py-2.5 rounded-lg transition shadow">
+                    다음 문제 <i class="fa-solid fa-arrow-right ml-1"></i>
+                </button>
+            </div>
+
+            <!-- Hint Modal Area -->
+            <div id="hint-box" class="hidden bg-amber-50 border-t border-amber-200 px-6 py-3 text-sm text-amber-900">
+                <span class="font-bold"><i class="fa-solid fa-circle-info mr-1"></i> 힌트:</span> 
+                <span id="hint-text"></span>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-4 text-xs text-slate-400">
+        중학교 2학년 2학기 수학 | 도형의 닮음 자율 학습 시스템
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Game State Variables
+        let currentProblem = null;
+        let score = 0;
+        let isSolved = false;
+
+        // Problem Generators for Middle School 2nd Grade Geometry Similarity
+        const problemGenerators = [
+            // Type 1: Basic Triangle Similarity (AA Similarity)
+            function generateAASimilarity() {
+                const ratioList = [[1, 2], [2, 3], [3, 4], [3, 5], [1, 3]];
+                const ratio = ratioList[Math.floor(Math.random() * ratioList.length)];
+                
+                const baseSmall = Math.floor(Math.random() * 5) + 4; // 4 to 8
+                const sideSmall = Math.floor(Math.random() * 4) + 5; // 5 to 8
+                
+                const baseLarge = (baseSmall * ratio[1]) / ratio[0];
+                const sideLarge = (sideSmall * ratio[1]) / ratio[0];
+
+                const askBase = Math.random() < 0.5;
+                const targetValue = askBase ? baseLarge : sideLarge;
+
+                return {
+                    category: "삼각형의 닮음 (AA 닮음)",
+                    title: "두 삼각형 △ABC 와 △DEF 가 서로 닮음(△ABC ∽ △DEF)일 때, $x$의 값을 구하세요.",
+                    hint: "서로 대응하는 변의 길이의 비(닮음비)는 일정합니다.",
+                    answer: targetValue,
+                    draw: (ctx, width, height) => {
+                        ctx.clearRect(0, 0, width, height);
+
+                        // Draw Small Triangle ABC
+                        drawTriangle(ctx, 40, 190, 140, 190, 80, 80, "△ABC");
+                        // Label ABC
+                        ctx.fillStyle = "#38bdf8";
+                        ctx.font = "bold 14px sans-serif";
+                        ctx.fillText(`BC = ${baseSmall}`, 75, 210);
+                        ctx.fillText(`AB = ${sideSmall}`, 35, 130);
+
+                        // Draw Large Triangle DEF
+                        const scale = 1.3;
+                        drawTriangle(ctx, 240, 190, 240 + 100 * scale, 190, 240 + 40 * scale, 190 - 110 * scale, "△DEF");
+                        // Label DEF
+                        ctx.fillStyle = "#f43f5e";
+                        if (askBase) {
+                            ctx.fillText(`EF = x`, 290, 210);
+                            ctx.fillText(`DE = ${sideLarge}`, 220, 120);
+                        } else {
+                            ctx.fillText(`EF = ${baseLarge}`, 290, 210);
+                            ctx.fillText(`DE = x`, 220, 120);
+                        }
+
+                        // Similarity Symbol Text in middle
+                        ctx.fillStyle = "#cbd5e1";
+                        ctx.font = "bold 20px serif";
+                        ctx.fillText("∽", 195, 140);
+                    }
+                };
+            },
+
+            // Type 2: Parallel Lines in Triangle (DE // BC)
+            function generateParallelLines() {
+                const a = Math.floor(Math.random() * 3) + 2; // 2, 3, 4
+                const b = Math.floor(Math.random() * 3) + 3; // 3, 4, 5
+                const mult = Math.floor(Math.random() * 3) + 2; // 2, 3, 4
+
+                const AD = a * mult;
+                const DB = b * mult;
+                const AE = Math.floor(Math.random() * 4) + 3; // 3 to 6
+                const EC = (AE * DB) / AD;
+
+                const askEC = Math.random() < 0.5;
+                const targetValue = askEC ? EC : AD;
+
+                return {
+                    category: "삼각형에서 평행선과 선분의 길이의 비",
+                    title: "△ABC에서 선분 DE와 선분 BC가 평행(DE // BC)일 때, $x$의 값을 구하세요.",
+                    hint: "DE // BC 이므로 AD : DB = AE : EC 가 성립합니다.",
+                    answer: targetValue,
+                    draw: (ctx, width, height) => {
+                        ctx.clearRect(0, 0, width, height);
+
+                        // Points
+                        const Ax = 250, Ay = 30;
+                        const Bx = 100, By = 220;
+                        const Cx = 400, Cy = 220;
+
+                        const ratio = 0.45;
+                        const Dx = Ax + (Bx - Ax) * ratio;
+                        const Dy = Ay + (By - Ay) * ratio;
+                        const Ex = Ax + (Cx - Ax) * ratio;
+                        const Ey = Ay + (Cy - Ay) * ratio;
+
+                        // Draw Triangle ABC
+                        ctx.beginPath();
+                        ctx.moveTo(Ax, Ay);
+                        ctx.lineTo(Bx, By);
+                        ctx.lineTo(Cx, Cy);
+                        ctx.closePath();
+                        ctx.strokeStyle = "#94a3b8";
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+
+                        // Draw Line DE
+                        ctx.beginPath();
+                        ctx.moveTo(Dx, Dy);
+                        ctx.lineTo(Ex, Ey);
+                        ctx.strokeStyle = "#38bdf8";
+                        ctx.lineWidth = 35 > 0 ? 3 : 3;
+                        ctx.stroke();
+
+                        // Labels
+                        ctx.fillStyle = "#ffffff";
+                        ctx.font = "bold 15px sans-serif";
+                        ctx.fillText("A", Ax - 5, Ay - 10);
+                        ctx.fillText("B", Bx - 20, By + 10);
+                        ctx.fillText("C", Cx + 10, Cy + 10);
+                        ctx.fillText("D", Dx - 20, Dy + 5);
+                        ctx.fillText("E", Ex + 10, Ey + 5);
+
+                        // Values Text
+                        ctx.fillStyle = "#facc15";
+                        ctx.font = "14px sans-serif";
+                        
+                        if (askEC) {
+                            ctx.fillText(`AD = ${AD}`, (Ax + Dx) / 2 - 40, (Ay + Dy) / 2);
+                            ctx.fillText(`DB = ${DB}`, (Dx + Bx) / 2 - 40, (Dy + By) / 2);
+                            ctx.fillText(`AE = ${AE}`, (Ax + Ex) / 2 + 10, (Ay + Ey) / 2);
+                            ctx.fillText(`EC = x`, (Ex + Cx) / 2 + 10, (Ey + Cy) / 2);
+                        } else {
+                            ctx.fillText(`AD = x`, (Ax + Dx) / 2 - 35, (Ay + Dy) / 2);
+                            ctx.fillText(`DB = ${DB}`, (Dx + Bx) / 2 - 40, (Dy + By) / 2);
+                            ctx.fillText(`AE = ${AE}`, (Ax + Ex) / 2 + 10, (Ay + Ey) / 2);
+                            ctx.fillText(`EC = ${EC}`, (Ex + Cx) / 2 + 10, (Ey + Cy) / 2);
+                        }
+                    }
+                };
+            },
+
+            // Type 3: Right Triangle Altitude Similarity (소 공식/직각삼각형 공식)
+            function generateRightTriangle() {
+                // Using Pythagorean triples: 3-4-5 multiples
+                const m = Math.floor(Math.random() * 3) + 2; // 2, 3, 4
+                const BH = 9 * m / 3; // 3m
+                const CH = 16 * m / 3; // 5.33m -> simplified: use BH=9, CH=16 => AH=12
+                
+                // Simplified clean integers: BH=4, CH=9 => AH=6
+                // Or BH=2, CH=8 => AH=4
+                const pairs = [
+                    { bh: 2, ch: 8, ah: 4 },
+                    { bh: 4, ch: 9, ah: 6 },
+                    { bh: 3, ch: 12, ah: 6 },
+                    { bh: 9, ch: 16, ah: 12 }
+                ];
+                const selected = pairs[Math.floor(Math.random() * pairs.length)];
+
+                return {
+                    category: "직각삼각형의 닮음 공식",
+                    title: "∠A = 90°인 직각삼각형 ABC에서 AH ⊥ BC일 때, 높이 $x$ (AH)의 값을 구하세요.",
+                    hint: "직각삼각형의 닮음 공식: (AH)² = BH × CH 가 성립합니다.",
+                    answer: selected.ah,
+                    draw: (ctx, width, height) => {
+                        ctx.clearRect(0, 0, width, height);
+
+                        const Ax = 200, Ay = 60;
+                        const Bx = 60, By = 200;
+                        const Cx = 440, Cy = 200;
+                        const Hx = 200, Hy = 200;
+
+                        // Outer Triangle ABC
+                        ctx.beginPath();
+                        ctx.moveTo(Ax, Ay);
+                        ctx.lineTo(Bx, By);
+                        ctx.lineTo(Cx, Cy);
+                        ctx.closePath();
+                        ctx.strokeStyle = "#94a3b8";
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+
+                        // Altitude AH
+                        ctx.beginPath();
+                        ctx.moveTo(Ax, Ay);
+                        ctx.lineTo(Hx, Hy);
+                        ctx.strokeStyle = "#f43f5e";
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+
+                        // Right Angle Marker at A (approx)
+                        ctx.strokeStyle = "#e2e8f0";
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(Hx - 12, Hy - 12, 12, 12); // H right angle
+
+                        // Labels
+                        ctx.fillStyle = "#ffffff";
+                        ctx.font = "bold 15px sans-serif";
+                        ctx.fillText("A", Ax - 5, Ay - 10);
+                        ctx.fillText("B", Bx - 20, By + 10);
+                        ctx.fillText("C", Cx + 10, Cy + 10);
+                        ctx.fillText("H", Hx - 5, Hy + 20);
+
+                        // Values Text
+                        ctx.fillStyle = "#38bdf8";
+                        ctx.font = "bold 14px sans-serif";
+                        ctx.fillText(`BH = ${selected.bh}`, (Bx + Hx)/2 - 15, By + 20);
+                        ctx.fillText(`CH = ${selected.ch}`, (Hx + Cx)/2 - 15, Cy + 20);
+                        
+                        ctx.fillStyle = "#f43f5e";
+                        ctx.fillText(`AH = x`, Hx + 10, (Ay + Hy)/2);
+                    }
+                };
+            },
+
+            // Type 4: Midpoint Theorem for Triangles
+            function generateMidpointTheorem() {
+                const BC = (Math.floor(Math.random() * 8) + 4) * 2; // Even numbers 8 to 22
+                const MN = BC / 2;
+
+                const askBC = Math.random() < 0.5;
+                const targetValue = askBC ? BC : MN;
+
+                return {
+                    category: "삼각형의 두 변의 중점을 연결한 선분",
+                    title: "점 M과 N이 각각 AB, AC의 중점일 때, 미지수 $x$의 값을 구하세요.",
+                    hint: "삼각형의 두 변의 중점을 연결한 선분은 남은 한 변과 평행하고, 그 길이는 남은 변의 길이에 1/2입니다.",
+                    answer: targetValue,
+                    draw: (ctx, width, height) => {
+                        ctx.clearRect(0, 0, width, height);
+
+                        const Ax = 230, Ay = 40;
+                        const Bx = 80, By = 210;
+                        const Cx = 400, Cy = 210;
+
+                        const Mx = (Ax + Bx) / 2;
+                        const My = (Ay + By) / 2;
+                        const Nx = (Ax + Cx) / 2;
+                        const Ny = (Ay + Cy) / 2;
+
+                        // Triangle ABC
+                        ctx.beginPath();
+                        ctx.moveTo(Ax, Ay);
+                        ctx.lineTo(Bx, By);
+                        ctx.lineTo(Cx, Cy);
+                        ctx.closePath();
+                        ctx.strokeStyle = "#94a3b8";
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+
+                        // Line MN
+                        ctx.beginPath();
+                        ctx.moveTo(Mx, My);
+                        ctx.lineTo(Nx, Ny);
+                        ctx.strokeStyle = "#a855f7";
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+
+                        // Midpoint markers (tick marks)
+                        drawTick(ctx, (Ax+Mx)/2, (Ay+My)/2);
+                        drawTick(ctx, (Mx+Bx)/2, (My+By)/2);
+                        drawTick(ctx, (Ax+Nx)/2, (Ay+Ny)/2);
+                        drawTick(ctx, (Nx+Cx)/2, (Ny+Cy)/2);
+
+                        // Point labels
+                        ctx.fillStyle = "#ffffff";
+                        ctx.font = "bold 15px sans-serif";
+                        ctx.fillText("A", Ax - 5, Ay - 10);
+                        ctx.fillText("B", Bx - 20, By + 10);
+                        ctx.fillText("C", Cx + 10, Cy + 10);
+                        ctx.fillText("M", Mx - 25, My + 5);
+                        ctx.fillText("N", Nx + 10, Ny + 5);
+
+                        // Values
+                        ctx.fillStyle = "#facc15";
+                        ctx.font = "bold 14px sans-serif";
+                        if (askBC) {
+                            ctx.fillText(`MN = ${MN}`, (Mx + Nx)/2 - 15, My - 10);
+                            ctx.fillText(`BC = x`, (Bx + Cx)/2 - 15, By + 25);
+                        } else {
+                            ctx.fillText(`MN = x`, (Mx + Nx)/2 - 15, My - 10);
+                            ctx.fillText(`BC = ${BC}`, (Bx + Cx)/2 - 15, By + 25);
+                        }
+                    }
+                };
+            }
+        ];
+
+        // Helper to draw triangle
+        function drawTriangle(ctx, x1, y1, x2, y2, x3, y3, label) {
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.lineTo(x3, y3);
+            ctx.closePath();
+            ctx.strokeStyle = "#cbd5e1";
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+            
+            ctx.fillStyle = "#94a3b8";
+            ctx.font = "12px sans-serif";
+            ctx.fillText(label, x1 - 5, y1 - 10);
+        }
+
+        // Helper for tick marks on lines
+        function drawTick(ctx, x, y) {
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
+            ctx.fillStyle = "#38bdf8";
+            ctx.fill();
+        }
+
+        // Load a New Problem
+        function loadProblem() {
+            isSolved = false;
+            document.getElementById("user-answer").value = "";
+            document.getElementById("user-answer").focus();
+            
+            // Hide feedback & hint
+            const feedbackBox = document.getElementById("feedback-box");
+            feedbackBox.classList.add("hidden");
+            document.getElementById("hint-box").classList.add("hidden");
+
+            // Pick random generator
+            const randomIndex = Math.floor(Math.random() * problemGenerators.length);
+            currentProblem = problemGenerators[randomIndex]();
+
+            // Update UI Labels
+            document.getElementById("problem-category").innerText = currentProblem.category;
+            document.getElementById("problem-title").innerText = currentProblem.title;
+            document.getElementById("hint-text").innerText = currentProblem.hint;
+
+            // Render Canvas Diagram
+            const canvas = document.getElementById("geometry-canvas");
+            const ctx = canvas.getContext("2d");
+            currentProblem.draw(ctx, canvas.width, canvas.height);
+        }
+
+        // Check Answer Logic
+        function checkAnswer() {
+            if (isSolved) return;
+
+            const inputVal = parseFloat(document.getElementById("user-answer").value);
+            const feedbackBox = document.getElementById("feedback-box");
+            const feedbackIcon = document.getElementById("feedback-icon");
+            const feedbackTitle = document.getElementById("feedback-title");
+            const feedbackDesc = document.getElementById("feedback-desc");
+
+            if (isNaN(inputVal)) {
+                showFeedback(
+                    "warning",
+                    "⚠️ 숫자를 입력해 주세요!",
+                    "정답 칸에 구한 $x$의 값을 숫자로 입력한 후 확인 버튼을 눌러주세요."
+                );
+                return;
+            }
+
+            // Allow small rounding tolerance for decimals if any
+            const isCorrect = Math.abs(inputVal - currentProblem.answer) < 0.05;
+
+            if (isCorrect) {
+                isSolved = true;
+                score++;
+                document.getElementById("score-count").innerText = score;
+
+                // Trigger Confetti Fireworks!
+                fireworks();
+
+                // Correct Feedback Mentions
+                const correctMentions = [
+                    "🎉 대단해요! 완벽한 정답입니다!",
+                    "👏 우와, 닮음의 성질을 완벽히 이해했군요!",
+                    "✨ 정답입니다! 수학 천재 아니신가요?",
+                    "🎯 정확합니다! 다음 문제도 도전해 보세요!"
+                ];
+                const randomMention = correctMentions[Math.floor(Math.random() * correctMentions.length)];
+
+                showFeedback(
+                    "success",
+                    randomMention,
+                    `정답은 <strong>${currentProblem.answer}</strong> 입니다. 축하합니다!`
+                );
+
+            } else {
+                // Incorrect Feedback Mentions
+                const wrongMentions = [
+                    "🧐 아쉬워요! 다시 한번 천천히 풀어볼까요?",
+                    "💪 틀려도 괜찮아요! 힌트를 참고해서 다시 도전해 보세요.",
+                    "🔍 계산을 다시 점검해 볼까요? 당신은 할 수 있어요!",
+                    "✏️ 아차! 조금 다르게 생각해보면 답이 나올 거예요."
+                ];
+                const randomMention = wrongMentions[Math.floor(Math.random() * wrongMentions.length)];
+
+                showFeedback(
+                    "error",
+                    randomMention,
+                    "닮음비를 다시 비례식으로 세워 차근차근 계산해 보세요. 힌트 버튼을 활용해도 좋아요!"
+                );
+
+                // Add shake animation to answer input box
+                const inputEl = document.getElementById("user-answer");
+                inputEl.classList.add("shake-animation");
+                setTimeout(() => inputEl.classList.remove("shake-animation"), 500);
+            }
+        }
+
+        // Display Feedback Banner
+        function showFeedback(type, title, desc) {
+            const feedbackBox = document.getElementById("feedback-box");
+            const feedbackIcon = document.getElementById("feedback-icon");
+            const feedbackTitle = document.getElementById("feedback-title");
+            const feedbackDesc = document.getElementById("feedback-desc");
+
+            feedbackBox.classList.remove("hidden", "bg-emerald-50", "border-emerald-200", "text-emerald-900", 
+                                        "bg-rose-50", "border-rose-200", "text-rose-900", 
+                                        "bg-amber-50", "border-amber-200", "text-amber-900");
+
+            if (type === "success") {
+                feedbackBox.classList.add("bg-emerald-50", "border", "border-emerald-200", "text-emerald-900");
+                feedbackIcon.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500"></i>';
+            } else if (type === "error") {
+                feedbackBox.classList.add("bg-rose-50", "border", "border-rose-200", "text-rose-900");
+                feedbackIcon.innerHTML = '<i class="fa-solid fa-circle-xmark text-rose-500"></i>';
+            } else {
+                feedbackBox.classList.add("bg-amber-50", "border", "border-amber-200", "text-amber-900");
+                feedbackIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-500"></i>';
+            }
+
+            feedbackTitle.innerHTML = title;
+            feedbackDesc.innerHTML = desc;
+        }
+
+        // Toggle Hint Display
+        function toggleHint() {
+            const hintBox = document.getElementById("hint-box");
+            hintBox.classList.toggle("hidden");
+        }
+
+        // Next Problem Button Handler
+        function nextProblem() {
+            loadProblem();
+        }
+
+        // Fireworks Animation Function using canvas-confetti
+        function fireworks() {
+            const count = 200;
+            const defaults = {
+                origin: { y: 0.7 }
+            };
+
+            function fire(particleRatio, opts) {
+                confetti(Object.assign({}, defaults, opts, {
+                    particleCount: Math.floor(count * particleRatio)
+                }));
+            }
+
+            fire(0.25, {
+                spread: 26,
+                startVelocity: 55,
+            });
+            fire(0.2, {
+                spread: 60,
+            });
+            fire(0.35, {
+                spread: 100,
+                decay: 0.91,
+                scalar: 0.8
+            });
+            fire(0.1, {
+                spread: 120,
+                startVelocity: 25,
+                decay: 0.92,
+                scalar: 1.2
+            });
+            fire(0.1, {
+                spread: 120,
+                startVelocity: 45,
+            });
+        }
+
+        // Initialize App on Window Load
+        window.onload = function() {
+            loadProblem();
+        };
+    </script>
+</body>
+</html>
